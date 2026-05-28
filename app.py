@@ -182,4 +182,4 @@ if st.session_state.jogador_selecionado is None:
 
     with st.sidebar.expander("Categoria Defesa"):
         hab_defensiva = st.slider("Habilidade Defensiva", 1, 99, (1, 99))
-        dividida_pe = st.slider("Divid
+        dividida_pe = st.slider("Dividida em Pe", 1, 99, (1, 99))
