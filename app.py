@@ -29,6 +29,11 @@ st.markdown("""
         color: #ffffff !important;
     }
     
+    /* CORREÇÃO DO EFEITO FANTASMA: Texto digitado fica preto! */
+    div[data-baseweb="input"] input {
+        color: #000000 !important;
+    }
+    
     /* Título principal em VERMELHO */
     h1:first-of-type {
         color: #FF0000 !important; 
@@ -142,10 +147,8 @@ if st.session_state.jogador_selecionado is None:
     with col_logo1:
         st.image("icone.png", width=90)
     with col_logo2:
-        # TÍTULO CORRIGIDO EM VERMELHO
         st.title("⚽ Siga La Pelota - FC Mania - DataBase")
     
-    # BOX DE AGRADECIMENTO FIXO NA HOME
     st.markdown("""
         <div class="agradecimento-box">
             ❤️ <b>Agradecimento Especial:</b> Desenvolvido em parceria e com o apoio fundamental da equipe <b>FC Mania Mod</b>. 
@@ -393,6 +396,5 @@ else:
             st.write(f"Posicionamento GL: **{jog['gkpositioning']}**")
             st.write(f"Reflexos GL: **{jog['gkreflexes']}**")
 
-    # AGRADECIMENTO DISCRETO TAMBÉM NO RODAPÉ DO PERFIL
     st.markdown("---")
     st.caption("Ficha técnica viabilizada graças ao suporte de DecoRuiz e equipe FC Mania Mod.")
