@@ -64,8 +64,15 @@ def carregar_dados():
     if 'teamname' in df.columns:
         df['teamname'] = df['teamname'].str.strip()
     
-    df['birthdate'] = pd.to_datetime(df['birthdate'], format='%d/%m/%Y', errors='coerce')
+    # VACINA DO EXCEL: Lê qualquer formato de data que o Excel mandar
+    df['birthdate'] = pd.to_datetime(df['birthdate'], errors='coerce')
+    
+    # Calcula a idade baseada na data tratada
     df['Idade'] = (pd.Timestamp.now() - df['birthdate']).dt.days // 365
+    
+    # BLINDAGEM MÁXIMA: Se a data de alguém quebrar por causa do Excel, assume 25 anos para não sumir da lista
+    df['Idade'] = df['Idade'].fillna(25).astype(int)
+    
     return df
 
 df = carregar_dados()
@@ -97,9 +104,9 @@ def obter_miniface(player_id):
                     encoded = base64.b64encode(buffer.getvalue()).decode()
                     return f"data:image/png;base64,{encoded}"
             except Exception:
-                pass # Se falhar, tenta o próximo caminho ou a internet
+                pass # Se falhar, tenta o próximo caminho ou o SoFIFA
     
-    # Fallback da Internet
+    # Link alternativo caso não encontre na pasta local
     return f"https://cdn.sofifa.net/players/{pasta1}/{pasta2}/24_120.png"
 
 if 'jogador_selecionado' not in st.session_state:
@@ -124,7 +131,7 @@ if st.session_state.jogador_selecionado is None:
     """, unsafe_allow_html=True)
     st.markdown("---")
 
-    # --- SIDEBAR (SEM FORMULÁRIO PARA NÃO BUGAR NO CELULAR) ---
+    # --- SIDEBAR (OTIMIZADA PARA CELULAR) ---
     st.sidebar.image("icone.png", width=150)
     st.sidebar.header("🔍 Central de Filtros")
 
@@ -183,3 +190,182 @@ if st.session_state.jogador_selecionado is None:
     with st.sidebar.expander("Categoria Defesa"):
         hab_defensiva = st.slider("Habilidade Defensiva", 1, 99, (1, 99))
         dividida_pe = st.slider("Dividida em Pe", 1, 99, (1, 99))
+        carrinho = st.slider("Carrinho", 1, 99, (1, 99))
+
+    with st.sidebar.expander("Categoria Goleiro"):
+        elast_gl = st.slider("Elasticidade GL", 1, 99, (1, 99))
+        manejo_gl = st.slider("Manejo GL", 1, 99, (1, 99))
+        chute_gl = st.slider("Chute GL", 1, 99, (1, 99))
+        pos_gl = st.slider("Posicionamento GL", 1, 99, (1, 99))
+        reflexos_gl = st.slider("Reflexos GL", 1, 99, (1, 99))
+
+
+    # LÓGICA FILTRADA (REATIVA)
+    df_filtrado = df.copy()
+    if busca_nome: df_filtrado = df_filtrado[df_filtrado['playername'].str.contains(busca_nome, case=False, na=False)]
+    if filtro_nacionalidade: df_filtrado = df_filtrado[df_filtrado['nationality'].isin(filtro_nacionalidade)]
+    if filtro_clube: df_filtrado = df_filtrado[df_filtrado['teamname'].isin(filtro_clube)]
+    if filtro_posicao: df_filtrado = df_filtrado[df_filtrado['Position'].isin(filtro_posicao)]
+
+    df_filtrado = df_filtrado[
+        (df_filtrado['Idade'].between(idade_min, idade_max)) & (df_filtrado['overallrating'].between(ovr_min, ovr_max)) &
+        (df_filtrado['potential'].between(pot_min, pot_max)) & (df_filtrado['height'].between(altura_min, altura_max)) &
+        (df_filtrado['weight'].between(peso_min, peso_max)) & (df_filtrado['weakfootabilitytypecode'].between(perna_ruim[0], perna_ruim[1])) &
+        (df_filtrado['crossing'].between(cruzamento[0], cruzamento[1])) & (df_filtrado['finishing'].between(finalizacao[0], finalizacao[1])) &
+        (df_filtrado['headingaccuracy'].between(precisao_cabeceio[0], precisao_cabeceio[1])) & (df_filtrado['shortpassing'].between(passe_curto[0], passe_curto[1])) &
+        (df_filtrado['volleys'].between(voleios[0], voleios[1])) &
+        (df_filtrado['dribbling'].between(dribles[0], dribles[1])) & (df_filtrado['curve'].between(curva[0], curva[1])) &
+        (df_filtrado['freekickaccuracy'].between(precisao_faltas[0], precisao_faltas[1])) & (df_filtrado['longpassing'].between(lancamento[0], lancamento[1])) &
+        (df_filtrado['ballcontrol'].between(controle_bola[0], controle_bola[1])) &
+        (df_filtrado['acceleration'].between(aceleracao[0], aceleracao[1])) & (df_filtrado['sprintspeed'].between(pique[0], pique[1])) &
+        (df_filtrado['agility'].between(agilidade[0], agilidade[1])) & (df_filtrado['reactions'].between(reacao[0], reacao[1])) &
+        (df_filtrado['balance'].between(equilibrio[0], equilibrio[1])) &
+        (df_filtrado['shotpower'].between(forca_chute[0], forca_chute[1])) & (df_filtrado['jumping'].between(impulsao[0], impulsao[1])) &
+        (df_filtrado['stamina'].between(folego[0], folego[1])) & (df_filtrado['strength'].between(forca[0], forca[1])) &
+        (df_filtrado['longshots'].between(chutes_longe[0], chutes_longe[1])) &
+        (df_filtrado['aggression'].between(combatividade[0], combatividade[1])) & (df_filtrado['interceptions'].between(interceptacao[0], interceptacao[1])) &
+        (df_filtrado['positioning'].between(pos_ataque[0], pos_ataque[1])) & (df_filtrado['vision'].between(visao[0], visao[1])) &
+        (df_filtrado['penalties'].between(penaltis[0], penaltis[1])) & (df_filtrado['composure'].between(compostura[0], compostura[1])) &
+        (df_filtrado['defensiveawareness'].between(hab_defensiva[0], hab_defensiva[1])) & (df_filtrado['standingtackle'].between(dividida_pe[0], dividida_pe[1])) &
+        (df_filtrado['slidingtackle'].between(carrinho[0], carrinho[1])) &
+        (df_filtrado['gkdiving'].between(elast_gl[0], elast_gl[1])) & (df_filtrado['gkhandling'].between(manejo_gl[0], manejo_gl[1])) &
+        (df_filtrado['gkkicking'].between(chute_gl[0], chute_gl[1])) & (df_filtrado['gkpositioning'].between(pos_gl[0], pos_gl[1])) &
+        (df_filtrado['gkreflexes'].between(reflexos_gl[0], reflexos_gl[1]))
+    ]
+
+    df_filtrado = df_filtrado.sort_values(by="overallrating", ascending=False).reset_index(drop=True)
+
+    # PAGINAÇÃO
+    total_jogadores = len(df_filtrado)
+    total_paginas = max(1, math.ceil(total_jogadores / 50))
+    
+    st.info("💡 **Dica:** Para abrir o perfil completo com todos os atributos, clique na **caixa de seleção** à esquerda da foto do jogador.")
+    
+    col_res, col_pag = st.columns([3, 1])
+    with col_res:
+        st.write(f"Encontrados **{total_jogadores}** jogadores.")
+    with col_pag:
+        pagina_selecionada = st.selectbox("Página", range(1, total_paginas + 1))
+    
+    inicio = (pagina_selecionada - 1) * 50
+    fim = inicio + 50
+    df_pagina = df_filtrado.iloc[inicio:fim].copy().reset_index(drop=True)
+
+    df_pagina['Foto'] = df_pagina['playerid'].apply(obter_miniface)
+    colunas_tabela = ['Foto', 'playername', 'overallrating', 'potential', 'teamname', 'Position', 'Idade']
+    
+    df_exibir_clean = df_pagina[colunas_tabela].rename(columns={
+        'playername': 'Nome', 'overallrating': 'Overall', 'potential': 'Potencial', 'teamname': 'Clube', 'Position': 'Pos'
+    })
+
+    evento = st.dataframe(
+        df_exibir_clean,
+        column_config={"Foto": st.column_config.ImageColumn("Foto")},
+        hide_index=False,
+        use_container_width=True,
+        on_select="rerun",
+        selection_mode="single-row"
+    )
+
+    if evento.selection.rows:
+        linha_selecionada = evento.selection.rows[0]
+        id_selecionado = df_pagina.loc[linha_selecionada, 'playerid']
+        st.session_state.jogador_selecionado = id_selecionado
+        st.rerun()
+
+# =====================================================================
+# TELA 2: PERFIL DO JOGADOR
+# =====================================================================
+else:
+    if st.button("⬅️ Voltar à Lista"):
+        st.session_state.jogador_selecionado = None
+        st.rerun()
+
+    st.markdown("---")
+    jog = df[df['playerid'] == st.session_state.jogador_selecionado].iloc[0]
+    foto_grande = obter_miniface(jog['playerid'])
+
+    col1, col2, col3 = st.columns([1, 2, 1])
+    
+    with col1:
+        st.markdown(f'<img src="{foto_grande}" width="400" style="border-radius: 12px; border: 2px solid #FF0000;">', unsafe_allow_html=True)
+        st.markdown(f"<br><h4>ID: {jog['playerid']}</h4>", unsafe_allow_html=True)
+        posicoes = [str(jog['Position'])]
+        for p in ['Position2', 'Position3', 'Position4']:
+            if pd.notna(jog[p]): posicoes.append(str(jog[p]))
+        st.write(f"**Posições:** {', '.join(posicoes)}")
+        st.write(f"**Clube:** {jog['teamname']}")
+
+    with col2:
+        st.markdown(f"<h1>{jog['playername']}</h1>", unsafe_allow_html=True)
+        c_p1, c_p2 = st.columns(2)
+        with c_p1:
+            st.metric("OVERALL", jog['overallrating'])
+            st.write(f"**Idade:** {jog['Idade']} anos")
+            st.write(f"**Perna Ruim (Estrelas):** {jog['weakfootabilitytypecode']}")
+        with c_p2:
+            st.metric("POTENCIAL", jog['potential'])
+            st.write(f"**Altura:** {jog['height']} cm")
+            st.write(f"**Peso:** {jog['weight']} kg")
+            st.write(f"**Nacionalidade (ID):** {jog['nationality']}")
+
+    st.markdown("---")
+    st.markdown("### 📊 Todos os Atributos Detalhados")
+
+    p1, p2, p3, p4 = st.columns(4)
+    
+    with p1:
+        st.markdown("#### Ofensivo")
+        st.write(f"Cruzamento: **{jog['crossing']}**")
+        st.write(f"Finalização: **{jog['finishing']}**")
+        st.write(f"Precisão Cabeceio: **{jog['headingaccuracy']}**")
+        st.write(f"Passe Curto: **{jog['shortpassing']}**")
+        st.write(f"Voleios: **{jog['volleys']}**")
+        
+        st.markdown("#### Habilidade")
+        st.write(f"Dribles: **{jog['dribbling']}**")
+        st.write(f"Curva: **{jog['curve']}**")
+        st.write(f"Precisão nas Faltas: **{jog['freekickaccuracy']}**")
+        st.write(f"Lançamento: **{jog['longpassing']}**")
+        st.write(f"Controle de Bola: **{jog['ballcontrol']}**")
+
+    with p2:
+        st.markdown("#### Movimentação")
+        st.write(f"Aceleração: **{jog['acceleration']}**")
+        st.write(f"Pique: **{jog['sprintspeed']}**")
+        st.write(f"Agilidade: **{jog['agility']}**")
+        st.write(f"Reação: **{jog['reactions']}**")
+        st.write(f"Equilíbrio: **{jog['balance']}**")
+        
+        st.markdown("#### Força")
+        st.write(f"Força do Chute: **{jog['shotpower']}**")
+        st.write(f"Impulsão: **{jog['jumping']}**")
+        st.write(f"Fôlego: **{jog['stamina']}**")
+        st.write(f"Força: **{jog['strength']}**")
+        st.write(f"Chutes de Longe: **{jog['longshots']}**")
+
+    with p3:
+        st.markdown("#### Mentalidade")
+        st.write(f"Combatividade: **{jog['aggression']}**")
+        st.write(f"Interceptação: **{jog['interceptions']}**")
+        st.write(f"Pos. de Ataque: **{jog['positioning']}**")
+        st.write(f"Visão de Jogo: **{jog['vision']}**")
+        st.write(f"Pênaltis: **{jog['penalties']}**")
+        st.write(f"Compostura: **{jog['composure']}**")
+
+    with p4:
+        st.markdown("#### Defesa")
+        st.write(f"Habilidade Defensiva: **{jog['defensiveawareness']}**")
+        st.write(f"Dividida em Pé: **{jog['standingtackle']}**")
+        st.write(f"Carrinho: **{jog['slidingtackle']}**")
+        
+        if jog['gkdiving'] > 10:
+            st.markdown("#### Goleiro")
+            st.write(f"Elasticidade GL: **{jog['gkdiving']}**")
+            st.write(f"Manejo GL: **{jog['gkhandling']}**")
+            st.write(f"Chute GL: **{jog['gkkicking']}**")
+            st.write(f"Posicionamento GL: **{jog['gkpositioning']}**")
+            st.write(f"Reflexos GL: **{jog['gkreflexes']}**")
+
+    st.markdown("---")
+    st.caption("Ficha técnica viabilizada graças ao suporte de DecoRuiz e equipe FC Mania Mod.")
