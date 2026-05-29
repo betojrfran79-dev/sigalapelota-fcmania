@@ -64,13 +64,12 @@ def carregar_dados():
     if 'teamname' in df.columns:
         df['teamname'] = df['teamname'].str.strip()
     
-    # VACINA DO EXCEL: Lê qualquer formato de data que o Excel mandar
+    # VACINA DO EXCEL 1: Remove o ".0" do ID que o Excel inventa (ex: 12345.0 vira 12345)
+    df['playerid'] = df['playerid'].fillna(0).astype(str).str.split('.').str[0]
+    
+    # VACINA DO EXCEL 2: Lê qualquer formato de data
     df['birthdate'] = pd.to_datetime(df['birthdate'], errors='coerce')
-    
-    # Calcula a idade baseada na data tratada
     df['Idade'] = (pd.Timestamp.now() - df['birthdate']).dt.days // 365
-    
-    # BLINDAGEM MÁXIMA: Se a data de alguém quebrar por causa do Excel, assume 25 anos para não sumir da lista
     df['Idade'] = df['Idade'].fillna(25).astype(int)
     
     return df
@@ -78,16 +77,18 @@ def carregar_dados():
 df = carregar_dados()
 
 def obter_miniface(player_id):
-    id_str = str(player_id).zfill(6)
+    # Garantia dupla de que o ID está limpo
+    id_limpo = str(player_id).split('.')[0]
+    id_str = id_limpo.zfill(6)
     pasta1 = id_str[:3]
     pasta2 = id_str[3:]
     
-    # Busca robusta (ignora maiúsculas nas extensões e procura várias opções)
+    # Busca robusta local
     possiveis_caminhos = [
-        f"heads/p{player_id}.png", f"heads/p{player_id}.PNG", 
-        f"heads/{player_id}.png", f"heads/{player_id}.PNG",
-        f"heads/p{player_id}.dds", f"heads/p{player_id}.DDS",
-        f"heads/{player_id}.dds", f"heads/{player_id}.DDS"
+        f"heads/p{id_limpo}.png", f"heads/p{id_limpo}.PNG", 
+        f"heads/{id_limpo}.png", f"heads/{id_limpo}.PNG",
+        f"heads/p{id_limpo}.dds", f"heads/p{id_limpo}.DDS",
+        f"heads/{id_limpo}.dds", f"heads/{id_limpo}.DDS"
     ]
     
     for caminho in possiveis_caminhos:
@@ -104,9 +105,9 @@ def obter_miniface(player_id):
                     encoded = base64.b64encode(buffer.getvalue()).decode()
                     return f"data:image/png;base64,{encoded}"
             except Exception:
-                pass # Se falhar, tenta o próximo caminho ou o SoFIFA
+                pass 
     
-    # Link alternativo caso não encontre na pasta local
+    # Fallback da Internet
     return f"https://cdn.sofifa.net/players/{pasta1}/{pasta2}/24_120.png"
 
 if 'jogador_selecionado' not in st.session_state:
@@ -131,7 +132,6 @@ if st.session_state.jogador_selecionado is None:
     """, unsafe_allow_html=True)
     st.markdown("---")
 
-    # --- SIDEBAR (OTIMIZADA PARA CELULAR) ---
     st.sidebar.image("icone.png", width=150)
     st.sidebar.header("🔍 Central de Filtros")
 
@@ -199,8 +199,6 @@ if st.session_state.jogador_selecionado is None:
         pos_gl = st.slider("Posicionamento GL", 1, 99, (1, 99))
         reflexos_gl = st.slider("Reflexos GL", 1, 99, (1, 99))
 
-
-    # LÓGICA FILTRADA (REATIVA)
     df_filtrado = df.copy()
     if busca_nome: df_filtrado = df_filtrado[df_filtrado['playername'].str.contains(busca_nome, case=False, na=False)]
     if filtro_nacionalidade: df_filtrado = df_filtrado[df_filtrado['nationality'].isin(filtro_nacionalidade)]
@@ -235,7 +233,6 @@ if st.session_state.jogador_selecionado is None:
 
     df_filtrado = df_filtrado.sort_values(by="overallrating", ascending=False).reset_index(drop=True)
 
-    # PAGINAÇÃO
     total_jogadores = len(df_filtrado)
     total_paginas = max(1, math.ceil(total_jogadores / 50))
     
@@ -356,7 +353,7 @@ else:
     with p4:
         st.markdown("#### Defesa")
         st.write(f"Habilidade Defensiva: **{jog['defensiveawareness']}**")
-        st.write(f"Dividida em Pé: **{jog['standingtackle']}**")
+        st.write(f"Dividida em Pe: **{jog['standingtackle']}**")
         st.write(f"Carrinho: **{jog['slidingtackle']}**")
         
         if jog['gkdiving'] > 10:
