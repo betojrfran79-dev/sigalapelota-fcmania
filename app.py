@@ -9,47 +9,23 @@ from PIL import Image
 # Configuração da Página
 st.set_page_config(page_title="Siga La PelotA - Database", page_icon="icone.png", layout="wide")
 
-# --- INJEÇÃO DE CSS E BLOQUEIO DE TRADUÇÃO AUTOMÁTICA ---
+# --- INJEÇÃO DE CSS ---
 st.markdown("""
     <meta name="google" content="notranslate">
-    
     <style>
-    /* Tema Escuro Base */
     [data-testid="stAppViewContainer"] { background-color: #1a1d21; color: #e4e6eb; font-family: 'Inter', sans-serif; }
-    
-    /* Barra Lateral */
     [data-testid="stSidebar"] { background-color: #15181b; border-right: 1px solid #30363d; }
-    
-    /* Força os textos da barra lateral a serem brancos, EXCETO dentro das caixas de entrada */
     [data-testid="stSidebar"] * { color: #ffffff !important; }
-    
-    /* CORREÇÃO: Tinta preta ao digitar no campo Nome E nos menus de Seleção Múltipla */
-    div[data-baseweb="input"] input, 
-    div[data-baseweb="select"] input { 
-        color: #000000 !important; 
-    }
-    
-    /* CORREÇÃO: Deixa o texto das caixinhas selecionadas (tags) legíveis */
-    span[data-baseweb="tag"] {
-        background-color: #333333 !important;
-        border: 1px solid #555555 !important;
-    }
-    span[data-baseweb="tag"] span {
-        color: #ffffff !important;
-    }
-    
-    /* Cores dos Títulos e Métricas */
+    div[data-baseweb="input"] input, div[data-baseweb="select"] input { color: #000000 !important; }
+    span[data-baseweb="tag"] { background-color: #333333 !important; border: 1px solid #555555 !important; }
+    span[data-baseweb="tag"] span { color: #ffffff !important; }
     h1:first-of-type { color: #FF0000 !important; }
     h2, h3, h4, h5, h6 { color: #ffffff !important; }
     .stMetric .stMetricLabel { color: #cccccc !important; }
     .stMetric .stMetricValue { color: #FF0000 !important; }
-    
-    /* Botões Gerais */
     .stButton>button { background-color: #333333; color: #ffffff !important; font-weight: bold; border-radius: 6px; border: 1px solid #555555; padding: 8px 16px; }
     .stButton>button:hover { background-color: #FF0000; border-color: #FF0000; }
     .st-emotion-cache-p5m40 { border-bottom: 1px solid #30363d; }
-    
-    /* Efeitos Visuais */
     [data-testid="stDataFrame"] img { transform: scale(1.15); }
     .agradecimento-box { background-color: #15181b; border-left: 4px solid #FF0000; padding: 15px; border-radius: 4px; margin-bottom: 20px; }
     </style>
@@ -58,56 +34,72 @@ st.markdown("""
 @st.cache_data
 def carregar_dados():
     df = pd.read_excel('squad_info_all_EA FC.xlsx')
-    df['playername'] = df['commonname'].fillna(df['firstname'].fillna('') + ' ' + df['lastname'].fillna(''))
-    df['playername'] = df['playername'].str.strip()
-    df['Position'] = df['Position'].str.strip()
+    
+    # BLINDAGEM DE TEXTOS
+    df['playername'] = df['commonname'].fillna(df['firstname'].fillna('') + ' ' + df['lastname'].fillna('')).astype(str).str.strip()
+    df['nationality'] = df['nationality'].fillna('Desconhecida').astype(str).str.strip()
+    df['Position'] = df['Position'].fillna('RES').astype(str).str.strip()
+    
     if 'teamname' in df.columns:
-        df['teamname'] = df['teamname'].str.strip()
+        df['teamname'] = df['teamname'].fillna('Sem Clube').astype(str).str.strip()
+    else:
+        df['teamname'] = 'Sem Clube'
+        
+    # BLINDAGEM SUPREMA DO ID: Força a ser número inteiro puro, sem erro e depois converte para texto
+    df['playerid'] = pd.to_numeric(df['playerid'], errors='coerce').fillna(0).astype(int).astype(str)
     
-    # VACINA DO EXCEL 1: Remove o ".0" do ID que o Excel inventa (ex: 12345.0 vira 12345)
-    df['playerid'] = df['playerid'].fillna(0).astype(str).str.split('.').str[0]
-    
-    # VACINA DO EXCEL 2: Lê qualquer formato de data
     df['birthdate'] = pd.to_datetime(df['birthdate'], errors='coerce')
     df['Idade'] = (pd.Timestamp.now() - df['birthdate']).dt.days // 365
     df['Idade'] = df['Idade'].fillna(25).astype(int)
     
+    # BLINDAGEM DE ATRIBUTOS NUMÉRICOS
+    colunas_numericas = ['overallrating', 'potential', 'height', 'weight', 'weakfootabilitytypecode', 
+                         'crossing', 'finishing', 'headingaccuracy', 'shortpassing', 'volleys', 
+                         'dribbling', 'curve', 'freekickaccuracy', 'longpassing', 'ballcontrol', 
+                         'acceleration', 'sprintspeed', 'agility', 'reactions', 'balance', 'shotpower', 
+                         'jumping', 'stamina', 'strength', 'longshots', 'aggression', 'interceptions', 
+                         'positioning', 'vision', 'penalties', 'composure', 'defensiveawareness', 
+                         'standingtackle', 'slidingtackle', 'gkdiving', 'gkhandling', 'gkkicking', 
+                         'gkpositioning', 'gkreflexes']
+    
+    for col in colunas_numericas:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0).astype(int)
+            
     return df
 
 df = carregar_dados()
 
+# Colocamos as imagens na memória de curto prazo (Cache) para o site não travar
+@st.cache_data(show_spinner=False)
 def obter_miniface(player_id):
-    # Garantia dupla de que o ID está limpo
-    id_limpo = str(player_id).split('.')[0]
+    id_limpo = str(player_id).strip()
     id_str = id_limpo.zfill(6)
     pasta1 = id_str[:3]
     pasta2 = id_str[3:]
     
-    # Busca robusta local
+    # Procura tanto na pasta 'heads' minúscula quanto 'Heads' maiúscula (Linux é chato com isso)
     possiveis_caminhos = [
         f"heads/p{id_limpo}.png", f"heads/p{id_limpo}.PNG", 
         f"heads/{id_limpo}.png", f"heads/{id_limpo}.PNG",
-        f"heads/p{id_limpo}.dds", f"heads/p{id_limpo}.DDS",
-        f"heads/{id_limpo}.dds", f"heads/{id_limpo}.DDS"
+        f"Heads/p{id_limpo}.png", f"Heads/p{id_limpo}.PNG", 
+        f"Heads/{id_limpo}.png", f"Heads/{id_limpo}.PNG"
     ]
     
     for caminho in possiveis_caminhos:
         if os.path.exists(caminho):
             try:
-                if caminho.lower().endswith('.png'):
-                    with open(caminho, "rb") as image_file:
-                        encoded = base64.b64encode(image_file.read()).decode()
-                    return f"data:image/png;base64,{encoded}"
-                elif caminho.lower().endswith('.dds'):
-                    img = Image.open(caminho)
+                # O SEGREDO DO SUCESSO: Abre a imagem pesada e comprime ela só para a tela
+                with Image.open(caminho) as img:
+                    img.thumbnail((120, 120)) # Reduz o peso da imagem drasticamente
                     buffer = io.BytesIO()
                     img.save(buffer, format="PNG")
                     encoded = base64.b64encode(buffer.getvalue()).decode()
-                    return f"data:image/png;base64,{encoded}"
+                return f"data:image/png;base64,{encoded}"
             except Exception:
                 pass 
-    
-    # Fallback da Internet
+                
+    # Fallback seguro caso falhe no HD
     return f"https://cdn.sofifa.net/players/{pasta1}/{pasta2}/24_120.png"
 
 if 'jogador_selecionado' not in st.session_state:
@@ -136,11 +128,14 @@ if st.session_state.jogador_selecionado is None:
     st.sidebar.header("🔍 Central de Filtros")
 
     busca_nome = st.sidebar.text_input("Nome", "")
-    todas_nacionalidades = sorted(df['nationality'].dropna().unique().tolist())
+    
+    todas_nacionalidades = sorted(df['nationality'].unique().tolist())
     filtro_nacionalidade = st.sidebar.multiselect("Nacionalidade (ID)", todas_nacionalidades)
-    todos_times = sorted(df['teamname'].dropna().unique().tolist())
+    
+    todos_times = sorted(df['teamname'].unique().tolist())
     filtro_clube = st.sidebar.multiselect("Clube", todos_times)
-    todas_posicoes = sorted(df['Position'].dropna().unique().tolist())
+    
+    todas_posicoes = sorted(df['Position'].unique().tolist())
     filtro_posicao = st.sidebar.multiselect("Posição", todas_posicoes)
 
     with st.sidebar.expander("Físico & Perfil Básico", expanded=False):
@@ -348,7 +343,7 @@ else:
         st.write(f"Pos. de Ataque: **{jog['positioning']}**")
         st.write(f"Visão de Jogo: **{jog['vision']}**")
         st.write(f"Pênaltis: **{jog['penalties']}**")
-        st.write(f"Compostura: **{jog['composure']}**")
+        st.write(f"Compostura: **{compostura}**")
 
     with p4:
         st.markdown("#### Defesa")
