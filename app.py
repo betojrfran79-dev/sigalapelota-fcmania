@@ -9,9 +9,8 @@ from PIL import Image
 # Configuração da Página
 st.set_page_config(page_title="Siga La PelotA - Database", page_icon="icone.png", layout="wide")
 
-# --- INJEÇÃO DE CSS OTIMIZADA ---
+# --- INJEÇÃO DE CSS BLINDADA (Sem vazamentos na tela e com nova cor para Métricas) ---
 st.markdown("""
-    <meta name="google" content="notranslate">
     <style>
     [data-testid="stAppViewContainer"] { background-color: #1a1d21; color: #e4e6eb; font-family: 'Inter', sans-serif; }
     [data-testid="stSidebar"] { background-color: #15181b; border-right: 1px solid #30363d; }
@@ -21,26 +20,20 @@ st.markdown("""
     span[data-baseweb="tag"] span { color: #ffffff !important; }
     h1:first-of-type { color: #FF0000 !important; }
     h2, h3, h4, h5, h6 { color: #ffffff !important; }
-    
-    /* OVERALL E POTENCIAL BRANCOS E GIGANTES */
-    .stMetric .stMetricLabel { color: #aaaaaa !important; font-size: 1.2rem !important; }
-    .stMetric .stMetricValue { color: #ffffff !important; font-size: 3rem !important; font-weight: 900 !important; }
-    
+    [data-testid="stMetricLabel"] { color: #aaaaaa !important; font-size: 1.2rem !important; }
+    [data-testid="stMetricValue"], [data-testid="stMetricValue"] div { color: #ffffff !important; font-size: 3rem !important; font-weight: 900 !important; }
     .stButton>button { background-color: #333333; color: #ffffff !important; font-weight: bold; border-radius: 6px; border: 1px solid #555555; padding: 8px 16px; }
     .stButton>button:hover { background-color: #FF0000; border-color: #FF0000; }
-    .st-emotion-cache-p5m40 { border-bottom: 1px solid #30363d; }
     [data-testid="stDataFrame"] img { transform: scale(1.15); }
     .agradecimento-box { background-color: #15181b; border-left: 4px solid #FF0000; padding: 15px; border-radius: 4px; margin-bottom: 20px; }
-    
-    /* TAMANHO DOS TEXTOS DE ATRIBUTOS */
-    .attr-text { font-size: 1.2rem; margin-bottom: 8px; border-bottom: 1px solid #30363d; padding-bottom: 4px; }
-    .attr-text b { color: #FF0000; float: right; font-size: 1.3rem;}
+    .attr-text { font-size: 1.2rem; margin-bottom: 8px; border-bottom: 1px solid #30363d; padding-bottom: 4px; display: flex; justify-content: space-between; align-items: center; }
+    .attr-text b { color: #FF0000; font-size: 1.3rem; }
     </style>
 """, unsafe_allow_html=True)
 
-# Função auxiliar para imprimir os atributos bonitos
+# Função auxiliar para imprimir os atributos organizados
 def mostrar_atributo(nome, valor):
-    st.markdown(f"<div class='attr-text'>{nome}: <b>{valor}</b></div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='attr-text'><span>{nome}:</span> <b>{valor}</b></div>", unsafe_allow_html=True)
 
 @st.cache_data
 def carregar_dados():
@@ -105,7 +98,7 @@ def obter_miniface_tabela(player_id):
                 pass 
     return f"https://cdn.sofifa.net/players/{pasta1}/{pasta2}/24_120.png"
 
-# MOTOR 2: Foto Gigante e Nítida para o Perfil (300px)
+# MOTOR 2: Foto Gigante para o Perfil (300px)
 @st.cache_data(show_spinner=False)
 def obter_miniface_perfil(player_id):
     id_limpo = str(player_id).strip()
@@ -145,8 +138,8 @@ if st.session_state.jogador_selecionado is None:
     with col_logo2:
         st.title("⚽ Siga La Pelota - FC Mania - DataBase")
     
-    # AVISO DE CELULAR INSERIDO AQUI
-    st.info("📱 **Acessando pelo celular?** Clique na setinha `>` no canto superior esquerdo da tela para abrir os filtros de busca!")
+    # AVISO DE CELULAR DESTACADO
+    st.warning("📱 **Acessando pelo celular?** Clique na **setinha `>`** no canto superior esquerdo para abrir o Menu de Filtros e Pesquisa!")
     
     st.markdown("""
         <div class="agradecimento-box">
@@ -276,7 +269,6 @@ if st.session_state.jogador_selecionado is None:
     fim = inicio + 50
     df_pagina = df_filtrado.iloc[inicio:fim].copy().reset_index(drop=True)
 
-    # Usa o motor leve para a tabela
     df_pagina['Foto'] = df_pagina['playerid'].apply(obter_miniface_tabela)
     colunas_tabela = ['Foto', 'playername', 'overallrating', 'potential', 'teamname', 'Position', 'Idade']
     
@@ -310,13 +302,11 @@ else:
     st.markdown("---")
     jog = df[df['playerid'] == st.session_state.jogador_selecionado].iloc[0]
     
-    # Usa o motor pesado para a imagem do perfil (maior nitidez)
     foto_grande = obter_miniface_perfil(jog['playerid'])
 
     col1, col2, col3 = st.columns([1, 2, 1])
     
     with col1:
-        # Aumentamos o max-width para a foto preencher bem o espaço lateral
         st.markdown(f'<img src="{foto_grande}" style="width: 100%; max-width: 280px; border-radius: 12px; border: 2px solid #FF0000;">', unsafe_allow_html=True)
         st.markdown(f"<br><h4>ID: {jog['playerid']}</h4>", unsafe_allow_html=True)
         posicoes = [str(jog['Position'])]
@@ -341,7 +331,6 @@ else:
     st.markdown("---")
     st.markdown("### 📊 Todos os Atributos Detalhados")
 
-    # Usando o novo formato visual grande para os atributos
     p1, p2, p3, p4 = st.columns(4)
     
     with p1:
@@ -352,7 +341,8 @@ else:
         mostrar_atributo("Passe Curto", jog['shortpassing'])
         mostrar_atributo("Voleios", jog['volleys'])
         
-        st.markdown("<br>#### Habilidade", unsafe_allow_html=True)
+        st.write("")
+        st.markdown("#### Habilidade")
         mostrar_atributo("Dribles", jog['dribbling'])
         mostrar_atributo("Curva", jog['curve'])
         mostrar_atributo("Precisão nas Faltas", jog['freekickaccuracy'])
@@ -367,7 +357,8 @@ else:
         mostrar_atributo("Reação", jog['reactions'])
         mostrar_atributo("Equilíbrio", jog['balance'])
         
-        st.markdown("<br>#### Força", unsafe_allow_html=True)
+        st.write("")
+        st.markdown("#### Força")
         mostrar_atributo("Força do Chute", jog['shotpower'])
         mostrar_atributo("Impulsão", jog['jumping'])
         mostrar_atributo("Fôlego", jog['stamina'])
@@ -381,7 +372,6 @@ else:
         mostrar_atributo("Pos. de Ataque", jog['positioning'])
         mostrar_atributo("Visão de Jogo", jog['vision'])
         mostrar_atributo("Pênaltis", jog['penalties'])
-        # AQUI ESTÁ A CORREÇÃO DO ERRO DA COMPOSTURA
         mostrar_atributo("Compostura", jog['composure'])
 
     with p4:
@@ -391,7 +381,8 @@ else:
         mostrar_atributo("Carrinho", jog['slidingtackle'])
         
         if jog['gkdiving'] > 10:
-            st.markdown("<br>#### Goleiro", unsafe_allow_html=True)
+            st.write("")
+            st.markdown("#### Goleiro")
             mostrar_atributo("Elasticidade GL", jog['gkdiving'])
             mostrar_atributo("Manejo GL", jog['gkhandling'])
             mostrar_atributo("Chute GL", jog['gkkicking'])
