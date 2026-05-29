@@ -9,7 +9,7 @@ from PIL import Image
 # Configuração da Página
 st.set_page_config(page_title="Siga La PelotA - Database", page_icon="icone.png", layout="wide")
 
-# --- INJEÇÃO DE CSS ---
+# --- INJEÇÃO DE CSS OTIMIZADA ---
 st.markdown("""
     <meta name="google" content="notranslate">
     <style>
@@ -21,21 +21,31 @@ st.markdown("""
     span[data-baseweb="tag"] span { color: #ffffff !important; }
     h1:first-of-type { color: #FF0000 !important; }
     h2, h3, h4, h5, h6 { color: #ffffff !important; }
-    .stMetric .stMetricLabel { color: #cccccc !important; }
-    .stMetric .stMetricValue { color: #FF0000 !important; }
+    
+    /* OVERALL E POTENCIAL BRANCOS E GIGANTES */
+    .stMetric .stMetricLabel { color: #aaaaaa !important; font-size: 1.2rem !important; }
+    .stMetric .stMetricValue { color: #ffffff !important; font-size: 3rem !important; font-weight: 900 !important; }
+    
     .stButton>button { background-color: #333333; color: #ffffff !important; font-weight: bold; border-radius: 6px; border: 1px solid #555555; padding: 8px 16px; }
     .stButton>button:hover { background-color: #FF0000; border-color: #FF0000; }
     .st-emotion-cache-p5m40 { border-bottom: 1px solid #30363d; }
     [data-testid="stDataFrame"] img { transform: scale(1.15); }
     .agradecimento-box { background-color: #15181b; border-left: 4px solid #FF0000; padding: 15px; border-radius: 4px; margin-bottom: 20px; }
+    
+    /* TAMANHO DOS TEXTOS DE ATRIBUTOS */
+    .attr-text { font-size: 1.2rem; margin-bottom: 8px; border-bottom: 1px solid #30363d; padding-bottom: 4px; }
+    .attr-text b { color: #FF0000; float: right; font-size: 1.3rem;}
     </style>
 """, unsafe_allow_html=True)
+
+# Função auxiliar para imprimir os atributos bonitos
+def mostrar_atributo(nome, valor):
+    st.markdown(f"<div class='attr-text'>{nome}: <b>{valor}</b></div>", unsafe_allow_html=True)
 
 @st.cache_data
 def carregar_dados():
     df = pd.read_excel('squad_info_all_EA FC.xlsx')
     
-    # BLINDAGEM DE TEXTOS
     df['playername'] = df['commonname'].fillna(df['firstname'].fillna('') + ' ' + df['lastname'].fillna('')).astype(str).str.strip()
     df['nationality'] = df['nationality'].fillna('Desconhecida').astype(str).str.strip()
     df['Position'] = df['Position'].fillna('RES').astype(str).str.strip()
@@ -45,14 +55,12 @@ def carregar_dados():
     else:
         df['teamname'] = 'Sem Clube'
         
-    # BLINDAGEM SUPREMA DO ID: Força a ser número inteiro puro, sem erro e depois converte para texto
     df['playerid'] = pd.to_numeric(df['playerid'], errors='coerce').fillna(0).astype(int).astype(str)
     
     df['birthdate'] = pd.to_datetime(df['birthdate'], errors='coerce')
     df['Idade'] = (pd.Timestamp.now() - df['birthdate']).dt.days // 365
     df['Idade'] = df['Idade'].fillna(25).astype(int)
     
-    # BLINDAGEM DE ATRIBUTOS NUMÉRICOS
     colunas_numericas = ['overallrating', 'potential', 'height', 'weight', 'weakfootabilitytypecode', 
                          'crossing', 'finishing', 'headingaccuracy', 'shortpassing', 'volleys', 
                          'dribbling', 'curve', 'freekickaccuracy', 'longpassing', 'ballcontrol', 
@@ -70,36 +78,58 @@ def carregar_dados():
 
 df = carregar_dados()
 
-# Colocamos as imagens na memória de curto prazo (Cache) para o site não travar
+# MOTOR 1: Foto Leve para a Tabela Principal (120px)
 @st.cache_data(show_spinner=False)
-def obter_miniface(player_id):
+def obter_miniface_tabela(player_id):
     id_limpo = str(player_id).strip()
     id_str = id_limpo.zfill(6)
     pasta1 = id_str[:3]
     pasta2 = id_str[3:]
     
-    # Procura tanto na pasta 'heads' minúscula quanto 'Heads' maiúscula (Linux é chato com isso)
     possiveis_caminhos = [
         f"heads/p{id_limpo}.png", f"heads/p{id_limpo}.PNG", 
         f"heads/{id_limpo}.png", f"heads/{id_limpo}.PNG",
         f"Heads/p{id_limpo}.png", f"Heads/p{id_limpo}.PNG", 
         f"Heads/{id_limpo}.png", f"Heads/{id_limpo}.PNG"
     ]
-    
     for caminho in possiveis_caminhos:
         if os.path.exists(caminho):
             try:
-                # O SEGREDO DO SUCESSO: Abre a imagem pesada e comprime ela só para a tela
                 with Image.open(caminho) as img:
-                    img.thumbnail((120, 120)) # Reduz o peso da imagem drasticamente
+                    img.thumbnail((120, 120))
                     buffer = io.BytesIO()
                     img.save(buffer, format="PNG")
                     encoded = base64.b64encode(buffer.getvalue()).decode()
                 return f"data:image/png;base64,{encoded}"
             except Exception:
                 pass 
-                
-    # Fallback seguro caso falhe no HD
+    return f"https://cdn.sofifa.net/players/{pasta1}/{pasta2}/24_120.png"
+
+# MOTOR 2: Foto Gigante e Nítida para o Perfil (300px)
+@st.cache_data(show_spinner=False)
+def obter_miniface_perfil(player_id):
+    id_limpo = str(player_id).strip()
+    id_str = id_limpo.zfill(6)
+    pasta1 = id_str[:3]
+    pasta2 = id_str[3:]
+    
+    possiveis_caminhos = [
+        f"heads/p{id_limpo}.png", f"heads/p{id_limpo}.PNG", 
+        f"heads/{id_limpo}.png", f"heads/{id_limpo}.PNG",
+        f"Heads/p{id_limpo}.png", f"Heads/p{id_limpo}.PNG", 
+        f"Heads/{id_limpo}.png", f"Heads/{id_limpo}.PNG"
+    ]
+    for caminho in possiveis_caminhos:
+        if os.path.exists(caminho):
+            try:
+                with Image.open(caminho) as img:
+                    img.thumbnail((300, 300))
+                    buffer = io.BytesIO()
+                    img.save(buffer, format="PNG")
+                    encoded = base64.b64encode(buffer.getvalue()).decode()
+                return f"data:image/png;base64,{encoded}"
+            except Exception:
+                pass 
     return f"https://cdn.sofifa.net/players/{pasta1}/{pasta2}/24_120.png"
 
 if 'jogador_selecionado' not in st.session_state:
@@ -114,6 +144,9 @@ if st.session_state.jogador_selecionado is None:
         st.image("icone.png", width=90)
     with col_logo2:
         st.title("⚽ Siga La Pelota - FC Mania - DataBase")
+    
+    # AVISO DE CELULAR INSERIDO AQUI
+    st.info("📱 **Acessando pelo celular?** Clique na setinha `>` no canto superior esquerdo da tela para abrir os filtros de busca!")
     
     st.markdown("""
         <div class="agradecimento-box">
@@ -180,7 +213,7 @@ if st.session_state.jogador_selecionado is None:
         pos_ataque = st.slider("Pos. de Ataque", 1, 99, (1, 99))
         visao = st.slider("Visão de Jogo", 1, 99, (1, 99))
         penaltis = st.slider("Pênaltis", 1, 99, (1, 99))
-        compostura = st.slider("Compostura", 1, 99, (1, 99))
+        compostura_filtro = st.slider("Compostura", 1, 99, (1, 99))
 
     with st.sidebar.expander("Categoria Defesa"):
         hab_defensiva = st.slider("Habilidade Defensiva", 1, 99, (1, 99))
@@ -218,7 +251,7 @@ if st.session_state.jogador_selecionado is None:
         (df_filtrado['longshots'].between(chutes_longe[0], chutes_longe[1])) &
         (df_filtrado['aggression'].between(combatividade[0], combatividade[1])) & (df_filtrado['interceptions'].between(interceptacao[0], interceptacao[1])) &
         (df_filtrado['positioning'].between(pos_ataque[0], pos_ataque[1])) & (df_filtrado['vision'].between(visao[0], visao[1])) &
-        (df_filtrado['penalties'].between(penaltis[0], penaltis[1])) & (df_filtrado['composure'].between(compostura[0], compostura[1])) &
+        (df_filtrado['penalties'].between(penaltis[0], penaltis[1])) & (df_filtrado['composure'].between(compostura_filtro[0], compostura_filtro[1])) &
         (df_filtrado['defensiveawareness'].between(hab_defensiva[0], hab_defensiva[1])) & (df_filtrado['standingtackle'].between(dividida_pe[0], dividida_pe[1])) &
         (df_filtrado['slidingtackle'].between(carrinho[0], carrinho[1])) &
         (df_filtrado['gkdiving'].between(elast_gl[0], elast_gl[1])) & (df_filtrado['gkhandling'].between(manejo_gl[0], manejo_gl[1])) &
@@ -243,7 +276,8 @@ if st.session_state.jogador_selecionado is None:
     fim = inicio + 50
     df_pagina = df_filtrado.iloc[inicio:fim].copy().reset_index(drop=True)
 
-    df_pagina['Foto'] = df_pagina['playerid'].apply(obter_miniface)
+    # Usa o motor leve para a tabela
+    df_pagina['Foto'] = df_pagina['playerid'].apply(obter_miniface_tabela)
     colunas_tabela = ['Foto', 'playername', 'overallrating', 'potential', 'teamname', 'Position', 'Idade']
     
     df_exibir_clean = df_pagina[colunas_tabela].rename(columns={
@@ -275,12 +309,15 @@ else:
 
     st.markdown("---")
     jog = df[df['playerid'] == st.session_state.jogador_selecionado].iloc[0]
-    foto_grande = obter_miniface(jog['playerid'])
+    
+    # Usa o motor pesado para a imagem do perfil (maior nitidez)
+    foto_grande = obter_miniface_perfil(jog['playerid'])
 
     col1, col2, col3 = st.columns([1, 2, 1])
     
     with col1:
-        st.markdown(f'<img src="{foto_grande}" width="400" style="border-radius: 12px; border: 2px solid #FF0000;">', unsafe_allow_html=True)
+        # Aumentamos o max-width para a foto preencher bem o espaço lateral
+        st.markdown(f'<img src="{foto_grande}" style="width: 100%; max-width: 280px; border-radius: 12px; border: 2px solid #FF0000;">', unsafe_allow_html=True)
         st.markdown(f"<br><h4>ID: {jog['playerid']}</h4>", unsafe_allow_html=True)
         posicoes = [str(jog['Position'])]
         for p in ['Position2', 'Position3', 'Position4']:
@@ -304,60 +341,62 @@ else:
     st.markdown("---")
     st.markdown("### 📊 Todos os Atributos Detalhados")
 
+    # Usando o novo formato visual grande para os atributos
     p1, p2, p3, p4 = st.columns(4)
     
     with p1:
         st.markdown("#### Ofensivo")
-        st.write(f"Cruzamento: **{jog['crossing']}**")
-        st.write(f"Finalização: **{jog['finishing']}**")
-        st.write(f"Precisão Cabeceio: **{jog['headingaccuracy']}**")
-        st.write(f"Passe Curto: **{jog['shortpassing']}**")
-        st.write(f"Voleios: **{jog['volleys']}**")
+        mostrar_atributo("Cruzamento", jog['crossing'])
+        mostrar_atributo("Finalização", jog['finishing'])
+        mostrar_atributo("Precisão Cabeceio", jog['headingaccuracy'])
+        mostrar_atributo("Passe Curto", jog['shortpassing'])
+        mostrar_atributo("Voleios", jog['volleys'])
         
-        st.markdown("#### Habilidade")
-        st.write(f"Dribles: **{jog['dribbling']}**")
-        st.write(f"Curva: **{jog['curve']}**")
-        st.write(f"Precisão nas Faltas: **{jog['freekickaccuracy']}**")
-        st.write(f"Lançamento: **{jog['longpassing']}**")
-        st.write(f"Controle de Bola: **{jog['ballcontrol']}**")
+        st.markdown("<br>#### Habilidade", unsafe_allow_html=True)
+        mostrar_atributo("Dribles", jog['dribbling'])
+        mostrar_atributo("Curva", jog['curve'])
+        mostrar_atributo("Precisão nas Faltas", jog['freekickaccuracy'])
+        mostrar_atributo("Lançamento", jog['longpassing'])
+        mostrar_atributo("Controle de Bola", jog['ballcontrol'])
 
     with p2:
         st.markdown("#### Movimentação")
-        st.write(f"Aceleração: **{jog['acceleration']}**")
-        st.write(f"Pique: **{jog['sprintspeed']}**")
-        st.write(f"Agilidade: **{jog['agility']}**")
-        st.write(f"Reação: **{jog['reactions']}**")
-        st.write(f"Equilíbrio: **{jog['balance']}**")
+        mostrar_atributo("Aceleração", jog['acceleration'])
+        mostrar_atributo("Pique", jog['sprintspeed'])
+        mostrar_atributo("Agilidade", jog['agility'])
+        mostrar_atributo("Reação", jog['reactions'])
+        mostrar_atributo("Equilíbrio", jog['balance'])
         
-        st.markdown("#### Força")
-        st.write(f"Força do Chute: **{jog['shotpower']}**")
-        st.write(f"Impulsão: **{jog['jumping']}**")
-        st.write(f"Fôlego: **{jog['stamina']}**")
-        st.write(f"Força: **{jog['strength']}**")
-        st.write(f"Chutes de Longe: **{jog['longshots']}**")
+        st.markdown("<br>#### Força", unsafe_allow_html=True)
+        mostrar_atributo("Força do Chute", jog['shotpower'])
+        mostrar_atributo("Impulsão", jog['jumping'])
+        mostrar_atributo("Fôlego", jog['stamina'])
+        mostrar_atributo("Força", jog['strength'])
+        mostrar_atributo("Chutes de Longe", jog['longshots'])
 
     with p3:
         st.markdown("#### Mentalidade")
-        st.write(f"Combatividade: **{jog['aggression']}**")
-        st.write(f"Interceptação: **{jog['interceptions']}**")
-        st.write(f"Pos. de Ataque: **{jog['positioning']}**")
-        st.write(f"Visão de Jogo: **{jog['vision']}**")
-        st.write(f"Pênaltis: **{jog['penalties']}**")
-        st.write(f"Compostura: **{compostura}**")
+        mostrar_atributo("Combatividade", jog['aggression'])
+        mostrar_atributo("Interceptação", jog['interceptions'])
+        mostrar_atributo("Pos. de Ataque", jog['positioning'])
+        mostrar_atributo("Visão de Jogo", jog['vision'])
+        mostrar_atributo("Pênaltis", jog['penalties'])
+        # AQUI ESTÁ A CORREÇÃO DO ERRO DA COMPOSTURA
+        mostrar_atributo("Compostura", jog['composure'])
 
     with p4:
         st.markdown("#### Defesa")
-        st.write(f"Habilidade Defensiva: **{jog['defensiveawareness']}**")
-        st.write(f"Dividida em Pe: **{jog['standingtackle']}**")
-        st.write(f"Carrinho: **{jog['slidingtackle']}**")
+        mostrar_atributo("Habilidade Defensiva", jog['defensiveawareness'])
+        mostrar_atributo("Dividida em Pe", jog['standingtackle'])
+        mostrar_atributo("Carrinho", jog['slidingtackle'])
         
         if jog['gkdiving'] > 10:
-            st.markdown("#### Goleiro")
-            st.write(f"Elasticidade GL: **{jog['gkdiving']}**")
-            st.write(f"Manejo GL: **{jog['gkhandling']}**")
-            st.write(f"Chute GL: **{jog['gkkicking']}**")
-            st.write(f"Posicionamento GL: **{jog['gkpositioning']}**")
-            st.write(f"Reflexos GL: **{jog['gkreflexes']}**")
+            st.markdown("<br>#### Goleiro", unsafe_allow_html=True)
+            mostrar_atributo("Elasticidade GL", jog['gkdiving'])
+            mostrar_atributo("Manejo GL", jog['gkhandling'])
+            mostrar_atributo("Chute GL", jog['gkkicking'])
+            mostrar_atributo("Posicionamento GL", jog['gkpositioning'])
+            mostrar_atributo("Reflexos GL", jog['gkreflexes'])
 
     st.markdown("---")
     st.caption("Ficha técnica viabilizada graças ao suporte de DecoRuiz e equipe FC Mania Mod.")
