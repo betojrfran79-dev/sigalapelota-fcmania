@@ -6,8 +6,8 @@ import base64
 import io
 from PIL import Image
 
-# Configuração da Página
-st.set_page_config(page_title="Siga La PelotA - Database", page_icon="icone.png", layout="wide")
+# Configuração da Página (Comando adicionado para forçar a barra a abrir no PC)
+st.set_page_config(page_title="Siga La PelotA - Database", page_icon="icone.png", layout="wide", initial_sidebar_state="expanded")
 
 # --- INJEÇÃO DE CSS BLINDADA ---
 st.markdown("""
@@ -32,7 +32,6 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Função auxiliar para imprimir os atributos organizados
 def mostrar_atributo(nome, valor):
     st.markdown(f"<div class='attr-text'><span>{nome}:</span> <b>{valor}</b></div>", unsafe_allow_html=True)
 
@@ -42,7 +41,7 @@ def carregar_dados():
     
     df['playername'] = df['commonname'].fillna(df['firstname'].fillna('') + ' ' + df['lastname'].fillna('')).astype(str).str.strip()
     
-    # 1º PEDIDO: DICIONÁRIO COMPLETO DE PAÍSES (Banco de Dados EA/SoFIFA)
+    # DICIONÁRIO DE PAÍSES 
     dict_paises = {
         '1': 'Albânia', '2': 'Andorra', '3': 'Armênia', '4': 'Áustria', '5': 'Azerbaijão', 
         '6': 'Bielorrússia', '7': 'Bélgica', '8': 'Bósnia e Herzegovina', '9': 'Bulgária', 
@@ -94,7 +93,7 @@ def carregar_dados():
     df['nationality'] = df['nationality'].fillna('0').astype(str).str.split('.').str[0]
     df['nationality'] = df['nationality'].map(lambda x: dict_paises.get(x, x))
     
-    # 2º PEDIDO: TRADUTOR DE POSIÇÕES PARA PT-BR
+    # TRADUTOR DE POSIÇÕES
     dict_pos = {
         'GK': 'GOL', 'CB': 'ZAG', 'LB': 'LE', 'RB': 'LD', 'LWB': 'ADE', 'RWB': 'ADD',
         'CDM': 'VOL', 'CM': 'MC', 'CAM': 'MEI', 'LM': 'ME', 'RM': 'MD',
@@ -108,12 +107,19 @@ def carregar_dados():
             df[p_col] = df[p_col].astype(str).str.strip()
             df[p_col] = df[p_col].map(lambda x: dict_pos.get(x, x)).replace('nan', '')
     
+    # TRATAMENTO DE CLUBES E REMOÇÃO DE MANAGERS
     if 'teamname' in df.columns:
         df['teamname'] = df['teamname'].fillna('Sem Clube').astype(str).str.strip()
+        # EXCLUI os managers com passe livre da nossa base
+        df = df[~df['teamname'].str.contains('Managers com passe livre|Passes Livres', case=False, na=False)]
     else:
         df['teamname'] = 'Sem Clube'
         
     df['playerid'] = pd.to_numeric(df['playerid'], errors='coerce').fillna(0).astype(int).astype(str)
+    
+    # O PULO DO GATO: REMOÇÃO DE DUPLICATAS (Países x Clubes)
+    # Isso mantém o clube (que aparece primeiro) e deleta a seleção
+    df = df.drop_duplicates(subset=['playerid'], keep='first')
     
     df['birthdate'] = pd.to_datetime(df['birthdate'], errors='coerce')
     df['Idade'] = (pd.Timestamp.now() - df['birthdate']).dt.days // 365
@@ -132,7 +138,7 @@ def carregar_dados():
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0).astype(int)
             
-    # 3º PEDIDO: CÁLCULO E CRIAÇÃO DAS COLUNAS DE MÉDIAS
+    # CÁLCULO DE MÉDIAS
     df['Ofensivo'] = df[['crossing', 'finishing', 'headingaccuracy', 'shortpassing', 'volleys']].mean(axis=1).round().astype(int)
     df['Habilidade'] = df[['dribbling', 'curve', 'freekickaccuracy', 'longpassing', 'ballcontrol']].mean(axis=1).round().astype(int)
     df['Movimentação'] = df[['acceleration', 'sprintspeed', 'agility', 'reactions', 'balance']].mean(axis=1).round().astype(int)
@@ -144,7 +150,7 @@ def carregar_dados():
 
 df = carregar_dados()
 
-# Motores de Imagens (Leve para tabela, Pesado para perfil)
+# Motores de Imagens
 @st.cache_data(show_spinner=False)
 def obter_miniface_tabela(player_id):
     id_limpo = str(player_id).strip()
@@ -189,7 +195,7 @@ if 'jogador_selecionado' not in st.session_state:
     st.session_state.jogador_selecionado = None
 
 # =====================================================================
-# 4º PEDIDO: BARRA LATERAL GLOBAL (MANTÉM OS FILTROS EM SEGUNDO PLANO)
+# BARRA LATERAL (Filtros Globais)
 # =====================================================================
 st.sidebar.image("icone.png", width=150)
 st.sidebar.header("🔍 Central de Filtros")
@@ -278,7 +284,7 @@ df_filtrado = df_filtrado[
     (df_filtrado['dribbling'].between(dribles[0], dribles[1])) & (df_filtrado['curve'].between(curva[0], curva[1])) &
     (df_filtrado['freekickaccuracy'].between(precisao_faltas[0], precisao_faltas[1])) & (df_filtrado['longpassing'].between(lancamento[0], lancamento[1])) &
     (df_filtrado['ballcontrol'].between(controle_bola[0], controle_bola[1])) &
-    (df_filtrado['acceleration'].between(aceleracao[0], acceleration[1])) if 'acceleration' in df_filtrado.columns and 'acceleration' in locals() else df_filtrado['acceleration'].between(aceleracao[0], aceleracao[1]) & (df_filtrado['sprintspeed'].between(pique[0], pique[1])) &
+    (df_filtrado['acceleration'].between(aceleracao[0], aceleracao[1])) & (df_filtrado['sprintspeed'].between(pique[0], pique[1])) &
     (df_filtrado['agility'].between(agilidade[0], agilidade[1])) & (df_filtrado['reactions'].between(reacao[0], reacao[1])) &
     (df_filtrado['balance'].between(equilibrio[0], equilibrio[1])) &
     (df_filtrado['shotpower'].between(forca_chute[0], forca_chute[1])) & (df_filtrado['jumping'].between(impulsao[0], impulsao[1])) &
