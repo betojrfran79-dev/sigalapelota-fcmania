@@ -312,7 +312,7 @@ if st.session_state.jogador_selecionado is None:
     with col_logo2:
         st.title("⚽ Siga La Pelota - FC Mania - DataBase")
     
-    st.warning("📱 **Acessando pelo celular?** Clique na **setinha `>`** no canto superior esquerdo para abrir o Menu de Filtros e Pesquisa!")
+    st.warning("📱 **Atenção!!** Clique na **setinha `>`** no canto superior esquerdo para abrir o Menu de Filtros e Pesquisa!")
     
     st.markdown("""
         <div class="agradecimento-box">
