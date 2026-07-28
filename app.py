@@ -6,7 +6,7 @@ import base64
 import io
 from PIL import Image
 
-# Configuração da Página (Comando adicionado para forçar a barra a abrir no PC)
+# Configuração da Página
 st.set_page_config(page_title="Siga La PelotA - Database", page_icon="icone.png", layout="wide", initial_sidebar_state="expanded")
 
 # --- INJEÇÃO DE CSS BLINDADA ---
@@ -41,7 +41,7 @@ def carregar_dados():
     
     df['playername'] = df['commonname'].fillna(df['firstname'].fillna('') + ' ' + df['lastname'].fillna('')).astype(str).str.strip()
     
-    # DICIONÁRIO DE PAÍSES 
+    # DICIONÁRIO DE PAÍSES (EA Sports/SoFIFA)
     dict_paises = {
         '1': 'Albânia', '2': 'Andorra', '3': 'Armênia', '4': 'Áustria', '5': 'Azerbaijão', 
         '6': 'Bielorrússia', '7': 'Bélgica', '8': 'Bósnia e Herzegovina', '9': 'Bulgária', 
@@ -90,8 +90,24 @@ def carregar_dados():
         '198': 'República do Congo', '201': 'Curaçao', '202': 'Kosovo', '203': 'Mali', '204': 'Mauritânia', 
         '205': 'Níger', '206': 'República Dominicana'
     }
+    
+    # NOVO: MAPEAMENTO DE CONTINENTES
+    dict_continentes_grupos = {
+        'Europa': ['Albânia', 'Andorra', 'Armênia', 'Áustria', 'Azerbaijão', 'Bielorrússia', 'Bélgica', 'Bósnia e Herzegovina', 'Bulgária', 'Croácia', 'Chipre', 'República Tcheca', 'Dinamarca', 'Inglaterra', 'Estônia', 'Ilhas Faroé', 'Finlândia', 'França', 'Macedônia do Norte', 'Geórgia', 'Alemanha', 'Grécia', 'Hungria', 'Islândia', 'Irlanda', 'Israel', 'Itália', 'Letônia', 'Liechtenstein', 'Lituânia', 'Luxemburgo', 'Malta', 'Moldávia', 'Holanda', 'Irlanda do Norte', 'Noruega', 'Polônia', 'Portugal', 'Romênia', 'Rússia', 'San Marino', 'Escócia', 'Eslováquia', 'Eslovênia', 'Espanha', 'Suécia', 'Suíça', 'Turquia', 'Ucrânia', 'País de Gales', 'Sérvia', 'Montenegro', 'Kosovo', 'Cazaquistão'],
+        'América do Sul': ['Argentina', 'Bolívia', 'Brasil', 'Chile', 'Colômbia', 'Equador', 'Paraguai', 'Peru', 'Uruguai', 'Venezuela', 'Suriname', 'Guiana'],
+        'Américas (Norte e Central)': ['Anguilla', 'Antígua e Barbuda', 'Aruba', 'Bahamas', 'Barbados', 'Belize', 'Bermudas', 'Ilhas Virgens Britânicas', 'Canadá', 'Ilhas Cayman', 'Costa Rica', 'Cuba', 'Dominica', 'República Dominicana', 'El Salvador', 'Granada', 'Guatemala', 'Haiti', 'Honduras', 'Jamaica', 'México', 'Montserrat', 'Antilhas Holandesas', 'Nicarágua', 'Panamá', 'Porto Rico', 'São Cristóvão e Neves', 'Santa Lúcia', 'São Vicente e Granadinas', 'Trinidad e Tobago', 'Ilhas Turks e Caicos', 'Estados Unidos', 'Ilhas Virgens Americanas', 'Curaçao'],
+        'África': ['Argélia', 'Angola', 'Benin', 'Botsuana', 'Burkina Faso', 'Burundi', 'Camarões', 'Cabo Verde', 'República Centro-Africana', 'Chade', 'Congo', 'República do Congo', 'Egito', 'Guiné Equatorial', 'Eritreia', 'Costa do Marfim', 'Etiópia', 'Gabão', 'Gâmbia', 'Gana', 'Guiné', 'Guiné-Bissau', 'Quênia', 'Lesoto', 'Libéria', 'Líbia', 'Madagascar', 'Malawi', 'Marrocos', 'Moçambique', 'Namíbia', 'Nigéria', 'Ruanda', 'São Tomé e Príncipe', 'Senegal', 'Seychelles', 'Serra Leoa', 'Somália', 'África do Sul', 'Sudão', 'Suazilândia', 'Tanzânia', 'Togo', 'Tunísia', 'Uganda', 'Zâmbia', 'Zimbábue', 'Mali', 'Mauritânia', 'Níger'],
+        'Ásia': ['Afeganistão', 'Bahrein', 'Bangladesh', 'Butão', 'Brunei', 'Camboja', 'China', 'Taiwan', 'Guam', 'Hong Kong', 'Índia', 'Indonésia', 'Irã', 'Iraque', 'Japão', 'Jordânia', 'Coreia do Norte', 'Coreia do Sul', 'Kuwait', 'Quirguistão', 'Laos', 'Líbano', 'Macau', 'Malásia', 'Maldivas', 'Mongólia', 'Mianmar', 'Nepal', 'Omã', 'Arábia Saudita', 'Cingapura', 'Sri Lanka', 'Síria', 'Tajiquistão', 'Tailândia', 'Turcomenistão', 'Emirados Árabes Unidos', 'Uzbequistão', 'Vietnã', 'Iêmen'],
+        'Oceania': ['Austrália', 'Fiji', 'Nova Caledônia', 'Nova Zelândia', 'Papua Nova Guiné', 'Samoa', 'Tahiti', 'Tonga', 'Vanuatu', 'Ilhas Salomão']
+    }
+    pais_para_continente = {}
+    for continente, paises in dict_continentes_grupos.items():
+        for pais in paises:
+            pais_para_continente[pais] = continente
+
     df['nationality'] = df['nationality'].fillna('0').astype(str).str.split('.').str[0]
     df['nationality'] = df['nationality'].map(lambda x: dict_paises.get(x, x))
+    df['Continente'] = df['nationality'].map(lambda x: pais_para_continente.get(x, 'Outros'))
     
     # TRADUTOR DE POSIÇÕES
     dict_pos = {
@@ -107,25 +123,22 @@ def carregar_dados():
             df[p_col] = df[p_col].astype(str).str.strip()
             df[p_col] = df[p_col].map(lambda x: dict_pos.get(x, x)).replace('nan', '')
     
-    # TRATAMENTO DE CLUBES E REMOÇÃO DE MANAGERS
+    # TRATAMENTO DE CLUBES E DUPLICATAS
     if 'teamname' in df.columns:
         df['teamname'] = df['teamname'].fillna('Sem Clube').astype(str).str.strip()
-        # EXCLUI os managers com passe livre da nossa base
         df = df[~df['teamname'].str.contains('Managers com passe livre|Passes Livres', case=False, na=False)]
     else:
         df['teamname'] = 'Sem Clube'
         
     df['playerid'] = pd.to_numeric(df['playerid'], errors='coerce').fillna(0).astype(int).astype(str)
-    
-    # O PULO DO GATO: REMOÇÃO DE DUPLICATAS (Países x Clubes)
-    # Isso mantém o clube (que aparece primeiro) e deleta a seleção
     df = df.drop_duplicates(subset=['playerid'], keep='first')
     
     df['birthdate'] = pd.to_datetime(df['birthdate'], errors='coerce')
     df['Idade'] = (pd.Timestamp.now() - df['birthdate']).dt.days // 365
     df['Idade'] = df['Idade'].fillna(25).astype(int)
     
-    colunas_numericas = ['overallrating', 'potential', 'height', 'weight', 'weakfootabilitytypecode', 
+    # ADICIONADO 'skillmoves' NA LISTA PARA LER CORRETAMENTE COMO NÚMERO
+    colunas_numericas = ['overallrating', 'potential', 'height', 'weight', 'weakfootabilitytypecode', 'skillmoves',
                          'crossing', 'finishing', 'headingaccuracy', 'shortpassing', 'volleys', 
                          'dribbling', 'curve', 'freekickaccuracy', 'longpassing', 'ballcontrol', 
                          'acceleration', 'sprintspeed', 'agility', 'reactions', 'balance', 'shotpower', 
@@ -202,7 +215,16 @@ st.sidebar.header("🔍 Central de Filtros")
 
 busca_nome = st.sidebar.text_input("Nome", "")
 
-todas_nacionalidades = sorted(df['nationality'].unique().tolist())
+# NOVO: FILTRO DINÂMICO DE CONTINENTES E PAÍSES
+todos_continentes = sorted([c for c in df['Continente'].unique() if c != 'Outros'])
+filtro_continente = st.sidebar.multiselect("Continente", todos_continentes)
+
+if filtro_continente:
+    paises_filtrados_lista = df[df['Continente'].isin(filtro_continente)]['nationality'].unique().tolist()
+    todas_nacionalidades = sorted(paises_filtrados_lista)
+else:
+    todas_nacionalidades = sorted(df['nationality'].unique().tolist())
+
 filtro_nacionalidade = st.sidebar.multiselect("Nacionalidade / País", todas_nacionalidades)
 
 todos_times = sorted(df['teamname'].unique().tolist())
@@ -269,7 +291,9 @@ with st.sidebar.expander("Categoria Goleiro"):
 
 # PROCESSAMENTO DO FILTRO REATIVO
 df_filtrado = df.copy()
+
 if busca_nome: df_filtrado = df_filtrado[df_filtrado['playername'].str.contains(busca_nome, case=False, na=False)]
+if filtro_continente: df_filtrado = df_filtrado[df_filtrado['Continente'].isin(filtro_continente)]
 if filtro_nacionalidade: df_filtrado = df_filtrado[df_filtrado['nationality'].isin(filtro_nacionalidade)]
 if filtro_clube: df_filtrado = df_filtrado[df_filtrado['teamname'].isin(filtro_clube)]
 if filtro_posicao: df_filtrado = df_filtrado[df_filtrado['Position'].isin(filtro_posicao)]
@@ -312,7 +336,7 @@ if st.session_state.jogador_selecionado is None:
     with col_logo2:
         st.title("⚽ Siga La Pelota - FC Mania - DataBase")
     
-    st.warning("📱 **Atenção!!** Clique na **setinha `>`** no canto superior esquerdo para abrir ou recolher o Menu de Filtros e Pesquisa!")
+    st.warning("📱 **Acessando pelo celular?** Clique na **setinha `>`** no canto superior esquerdo para abrir o Menu de Filtros e Pesquisa!")
     
     st.markdown("""
         <div class="agradecimento-box">
@@ -395,11 +419,16 @@ else:
             st.metric("OVERALL", jog['overallrating'])
             st.write(f"**Idade:** {jog['Idade']} anos")
             st.write(f"**Perna Ruim (Estrelas):** {jog['weakfootabilitytypecode']}")
+            
+            # ADICIONADO: LÓGICA DAS FINTAS/DRIBLE (0 = 1, 4 = 5 estrelas)
+            estrelas_fintas = max(1, min(5, int(jog.get('skillmoves', 0)) + 1))
+            st.write(f"**Fintas (Estrelas):** {estrelas_fintas}")
+            
         with c_p2:
             st.metric("POTENCIAL", jog['potential'])
             st.write(f"**Altura:** {jog['height']} cm")
             st.write(f"**Peso:** {jog['weight']} kg")
-            st.write(f"**País:** {jog['nationality']}")
+            st.write(f"**País:** {jog['nationality']} ({jog['Continente']})")
 
     st.markdown("---")
     st.markdown("### 📊 Todos os Atributos Detalhados")
