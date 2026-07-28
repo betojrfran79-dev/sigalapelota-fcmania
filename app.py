@@ -37,8 +37,16 @@ def mostrar_atributo(nome, valor):
 
 @st.cache_data
 def carregar_dados():
-    df = pd.read_excel('squad_info_all_EA FC.xlsx')
+    # Lendo a planilha que você solicitou
+    df = pd.read_excel('squad_info_all.xlsx')
     
+    if 'commonname' not in df.columns:
+        df['commonname'] = ''
+    if 'firstname' not in df.columns:
+        df['firstname'] = ''
+    if 'lastname' not in df.columns:
+        df['lastname'] = ''
+        
     df['playername'] = df['commonname'].fillna(df['firstname'].fillna('') + ' ' + df['lastname'].fillna('')).astype(str).str.strip()
     
     # DICIONÁRIO DE PAÍSES (EA Sports/SoFIFA)
@@ -91,7 +99,7 @@ def carregar_dados():
         '205': 'Níger', '206': 'República Dominicana'
     }
     
-    # NOVO: MAPEAMENTO DE CONTINENTES
+    # MAPEAMENTO DE CONTINENTES
     dict_continentes_grupos = {
         'Europa': ['Albânia', 'Andorra', 'Armênia', 'Áustria', 'Azerbaijão', 'Bielorrússia', 'Bélgica', 'Bósnia e Herzegovina', 'Bulgária', 'Croácia', 'Chipre', 'República Tcheca', 'Dinamarca', 'Inglaterra', 'Estônia', 'Ilhas Faroé', 'Finlândia', 'França', 'Macedônia do Norte', 'Geórgia', 'Alemanha', 'Grécia', 'Hungria', 'Islândia', 'Irlanda', 'Israel', 'Itália', 'Letônia', 'Liechtenstein', 'Lituânia', 'Luxemburgo', 'Malta', 'Moldávia', 'Holanda', 'Irlanda do Norte', 'Noruega', 'Polônia', 'Portugal', 'Romênia', 'Rússia', 'San Marino', 'Escócia', 'Eslováquia', 'Eslovênia', 'Espanha', 'Suécia', 'Suíça', 'Turquia', 'Ucrânia', 'País de Gales', 'Sérvia', 'Montenegro', 'Kosovo', 'Cazaquistão'],
         'América do Sul': ['Argentina', 'Bolívia', 'Brasil', 'Chile', 'Colômbia', 'Equador', 'Paraguai', 'Peru', 'Uruguai', 'Venezuela', 'Suriname', 'Guiana'],
@@ -105,9 +113,13 @@ def carregar_dados():
         for pais in paises:
             pais_para_continente[pais] = continente
 
-    df['nationality'] = df['nationality'].fillna('0').astype(str).str.split('.').str[0]
-    df['nationality'] = df['nationality'].map(lambda x: dict_paises.get(x, x))
-    df['Continente'] = df['nationality'].map(lambda x: pais_para_continente.get(x, 'Outros'))
+    if 'nationality' in df.columns:
+        df['nationality'] = df['nationality'].fillna('0').astype(str).str.split('.').str[0]
+        df['nationality'] = df['nationality'].map(lambda x: dict_paises.get(x, x))
+        df['Continente'] = df['nationality'].map(lambda x: pais_para_continente.get(x, 'Outros'))
+    else:
+        df['nationality'] = 'Desconhecido'
+        df['Continente'] = 'Outros'
     
     # TRADUTOR DE POSIÇÕES
     dict_pos = {
@@ -115,8 +127,11 @@ def carregar_dados():
         'CDM': 'VOL', 'CM': 'MC', 'CAM': 'MEI', 'LM': 'ME', 'RM': 'MD',
         'LW': 'PE', 'RW': 'PD', 'CF': 'SA', 'ST': 'ATA'
     }
-    df['Position'] = df['Position'].fillna('RES').astype(str).str.strip()
-    df['Position'] = df['Position'].map(lambda x: dict_pos.get(x, x))
+    if 'Position' in df.columns:
+        df['Position'] = df['Position'].fillna('RES').astype(str).str.strip()
+        df['Position'] = df['Position'].map(lambda x: dict_pos.get(x, x))
+    else:
+        df['Position'] = 'RES'
     
     for p_col in ['Position2', 'Position3', 'Position4']:
         if p_col in df.columns:
@@ -130,15 +145,24 @@ def carregar_dados():
     else:
         df['teamname'] = 'Sem Clube'
         
-    df['playerid'] = pd.to_numeric(df['playerid'], errors='coerce').fillna(0).astype(int).astype(str)
-    df = df.drop_duplicates(subset=['playerid'], keep='first')
+    if 'playerid' in df.columns:
+        df['playerid'] = pd.to_numeric(df['playerid'], errors='coerce').fillna(0).astype(int).astype(str)
+        df = df.drop_duplicates(subset=['playerid'], keep='first')
     
-    df['birthdate'] = pd.to_datetime(df['birthdate'], errors='coerce')
-    df['Idade'] = (pd.Timestamp.now() - df['birthdate']).dt.days // 365
-    df['Idade'] = df['Idade'].fillna(25).astype(int)
+    if 'birthdate' in df.columns:
+        df['birthdate'] = pd.to_datetime(df['birthdate'], errors='coerce')
+        df['Idade'] = (pd.Timestamp.now() - df['birthdate']).dt.days // 365
+        df['Idade'] = df['Idade'].fillna(25).astype(int)
+    else:
+        df['Idade'] = 25
+        
+    # TRAVA DE SEGURANÇA: Se a planilha não tiver essas colunas, cria zerada
+    if 'skillmoves' not in df.columns:
+        df['skillmoves'] = 0
+    if 'gender' not in df.columns:
+        df['gender'] = 0
     
-    # ADICIONADO 'skillmoves' NA LISTA PARA LER CORRETAMENTE COMO NÚMERO
-    colunas_numericas = ['overallrating', 'potential', 'height', 'weight', 'weakfootabilitytypecode', 'skillmoves',
+    colunas_numericas = ['overallrating', 'potential', 'height', 'weight', 'weakfootabilitytypecode', 'skillmoves', 'gender',
                          'crossing', 'finishing', 'headingaccuracy', 'shortpassing', 'volleys', 
                          'dribbling', 'curve', 'freekickaccuracy', 'longpassing', 'ballcontrol', 
                          'acceleration', 'sprintspeed', 'agility', 'reactions', 'balance', 'shotpower', 
@@ -152,12 +176,12 @@ def carregar_dados():
             df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0).astype(int)
             
     # CÁLCULO DE MÉDIAS
-    df['Ofensivo'] = df[['crossing', 'finishing', 'headingaccuracy', 'shortpassing', 'volleys']].mean(axis=1).round().astype(int)
-    df['Habilidade'] = df[['dribbling', 'curve', 'freekickaccuracy', 'longpassing', 'ballcontrol']].mean(axis=1).round().astype(int)
-    df['Movimentação'] = df[['acceleration', 'sprintspeed', 'agility', 'reactions', 'balance']].mean(axis=1).round().astype(int)
-    df['Força'] = df[['shotpower', 'jumping', 'stamina', 'strength', 'longshots']].mean(axis=1).round().astype(int)
-    df['Mentalidade'] = df[['aggression', 'interceptions', 'positioning', 'vision', 'penalties', 'composure']].mean(axis=1).round().astype(int)
-    df['Defesa'] = df[['defensiveawareness', 'standingtackle', 'slidingtackle']].mean(axis=1).round().astype(int)
+    df['Ofensivo'] = df.get(['crossing', 'finishing', 'headingaccuracy', 'shortpassing', 'volleys'], pd.DataFrame()).mean(axis=1).round().fillna(0).astype(int)
+    df['Habilidade'] = df.get(['dribbling', 'curve', 'freekickaccuracy', 'longpassing', 'ballcontrol'], pd.DataFrame()).mean(axis=1).round().fillna(0).astype(int)
+    df['Movimentação'] = df.get(['acceleration', 'sprintspeed', 'agility', 'reactions', 'balance'], pd.DataFrame()).mean(axis=1).round().fillna(0).astype(int)
+    df['Força'] = df.get(['shotpower', 'jumping', 'stamina', 'strength', 'longshots'], pd.DataFrame()).mean(axis=1).round().fillna(0).astype(int)
+    df['Mentalidade'] = df.get(['aggression', 'interceptions', 'positioning', 'vision', 'penalties', 'composure'], pd.DataFrame()).mean(axis=1).round().fillna(0).astype(int)
+    df['Defesa'] = df.get(['defensiveawareness', 'standingtackle', 'slidingtackle'], pd.DataFrame()).mean(axis=1).round().fillna(0).astype(int)
             
     return df
 
@@ -215,7 +239,7 @@ st.sidebar.header("🔍 Central de Filtros")
 
 busca_nome = st.sidebar.text_input("Nome", "")
 
-# NOVO: FILTRO DINÂMICO DE CONTINENTES E PAÍSES
+# FILTRO DINÂMICO DE CONTINENTES E PAÍSES
 todos_continentes = sorted([c for c in df['Continente'].unique() if c != 'Outros'])
 filtro_continente = st.sidebar.multiselect("Continente", todos_continentes)
 
@@ -232,6 +256,9 @@ filtro_clube = st.sidebar.multiselect("Clube", todos_times)
 
 todas_posicoes = sorted(df['Position'].unique().tolist())
 filtro_posicao = st.sidebar.multiselect("Posição", todas_posicoes)
+
+# Filtro de Gênero
+filtro_genero = st.sidebar.selectbox("Gênero", ["Qualquer", "Masculino", "Feminino"], key="filtro_genero")
 
 with st.sidebar.expander("Físico & Perfil Básico", expanded=False):
     idade_min, idade_max = st.slider("Idade", 15, 50, (15, 50))
@@ -297,6 +324,11 @@ if filtro_continente: df_filtrado = df_filtrado[df_filtrado['Continente'].isin(f
 if filtro_nacionalidade: df_filtrado = df_filtrado[df_filtrado['nationality'].isin(filtro_nacionalidade)]
 if filtro_clube: df_filtrado = df_filtrado[df_filtrado['teamname'].isin(filtro_clube)]
 if filtro_posicao: df_filtrado = df_filtrado[df_filtrado['Position'].isin(filtro_posicao)]
+
+if filtro_genero == "Masculino":
+    df_filtrado = df_filtrado[df_filtrado['gender'] == 0]
+elif filtro_genero == "Feminino":
+    df_filtrado = df_filtrado[df_filtrado['gender'] == 1]
 
 df_filtrado = df_filtrado[
     (df_filtrado['Idade'].between(idade_min, idade_max)) & (df_filtrado['overallrating'].between(ovr_min, ovr_max)) &
@@ -420,7 +452,7 @@ else:
             st.write(f"**Idade:** {jog['Idade']} anos")
             st.write(f"**Perna Ruim (Estrelas):** {jog['weakfootabilitytypecode']}")
             
-            # ADICIONADO: LÓGICA DAS FINTAS/DRIBLE (0 = 1, 4 = 5 estrelas)
+            # CÁLCULO DAS FINTAS: DE 0-4 PARA 1-5
             estrelas_fintas = max(1, min(5, int(jog.get('skillmoves', 0)) + 1))
             st.write(f"**Fintas (Estrelas):** {estrelas_fintas}")
             
