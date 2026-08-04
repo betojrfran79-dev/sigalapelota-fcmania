@@ -271,9 +271,6 @@ st.html(
 <script>
 (function () {
   var rootWin = window;
-  try {
-    if (window.parent && window.parent.document) rootWin = window.parent;
-  } catch (e) {}
   if (rootWin.__slpPtUi) return;
   rootWin.__slpPtUi = true;
   var doc = rootWin.document;
@@ -526,13 +523,10 @@ def link_nome_time(nome, tid, estado_ui="", from_pid=None):
     if pid_i > 0:
         from_param = f"&from_pid={pid_i}"
     href = f"?modo=times&tid={tid_i}{from_param}{s_param}"
-    # Navega na janela principal (não abre aba nova; st.markdown forçaria target=_blank)
     return (
         f'<a class="pf-team-link" href="{html.escape(href)}" target="_self" '
         f'onclick="event.preventDefault();event.stopPropagation();'
-        f'(function(h){{try{{var w=(window.parent&&window.parent!==window)?window.parent:window;'
-        f'w.location.href=h;}}catch(e){{window.location.href=h;}}}})'
-        f'(this.getAttribute(\'href\'));return false;">'
+        f'window.location.href=this.getAttribute(\'href\');return false;">'
         f"{html.escape(nome_txt)}</a>"
     )
 
@@ -1293,11 +1287,6 @@ def html_lista_jogadores(df_pagina, filtro_times=None, pagina=1, total_paginas=1
     (function () {{
       var SLP_UI_STATE = {json.dumps(serializar_estado_ui())};
       function rootWin() {{
-        try {{
-          if (window.parent && window.parent !== window && window.parent.document) {{
-            return window.parent;
-          }}
-        }} catch (e) {{}}
         return window;
       }}
       function scrollEl(win) {{
@@ -1691,7 +1680,6 @@ def html_lista_elenco(elenco, players_by_id, obter_foto_fn, estado_ui="", team_i
     (function(){{
       var SLP_UI_STATE = {estado_js};
       function rootWin(){{
-        try {{ if (window.parent && window.parent!==window) return window.parent; }} catch(e){{}}
         return window;
       }}
       function go(q){{
@@ -2899,9 +2887,7 @@ if _voltar_cfg:
         <div class="slp-tab-voltar">
           <a href="{_v_href}" target="_self"
              onclick="event.preventDefault();
-               (function(h){{try{{var w=(window.parent&&window.parent!==window)?window.parent:window;
-               w.location.href=h;}}catch(e){{window.location.href=h;}}}})
-               (this.getAttribute('href'));return false;">{html.escape(_v_rotulo)}</a>
+               window.location.href=this.getAttribute('href');return false;">{html.escape(_v_rotulo)}</a>
         </div>
         """,
         unsafe_allow_javascript=True,
